@@ -25,7 +25,6 @@ import (
 	"time"
 
 	resourceapi "k8s.io/api/resource/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	coreclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/dynamic-resource-allocation/kubeletplugin"
 	"k8s.io/dynamic-resource-allocation/resourceslice"
@@ -69,8 +68,6 @@ func Start(ctx context.Context, config *sriovdratype.Config, deviceStateManager 
 		kubeletplugin.DriverName(consts.DriverName),
 		kubeletplugin.RegistrarDirectoryPath(config.Flags.KubeletRegistrarDirectoryPath),
 		kubeletplugin.PluginDataDirectoryPath(config.DriverPluginPath()),
-		kubeletplugin.EnableDeviceMetadata(true),
-		kubeletplugin.MetadataVersions(schema.GroupVersion{Group: "metadata.resource.k8s.io", Version: "v1alpha1"}),
 	)
 	if err != nil {
 		klog.FromContext(ctx).Error(err, "Failed to start DRA kubelet plugin")

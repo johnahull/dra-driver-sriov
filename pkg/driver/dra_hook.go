@@ -135,21 +135,12 @@ func (d *Driver) prepareResourceClaim(ctx context.Context, ifNameIndex *int, cla
 	if isAlreadyPrepared {
 		var prepared []kubeletplugin.Device
 		for _, preparedDevice := range preparedDevices {
-			dev := kubeletplugin.Device{
+			prepared = append(prepared, kubeletplugin.Device{
 				Requests:     preparedDevice.Device.GetRequestNames(),
 				PoolName:     preparedDevice.Device.GetPoolName(),
 				DeviceName:   preparedDevice.Device.GetDeviceName(),
-				CDIDeviceIDs: preparedDevice.Device.GetCdiDeviceIds(),
-			}
-			if preparedDevice.PciAddress != "" {
-				pci := preparedDevice.PciAddress
-				dev.Metadata = &kubeletplugin.DeviceMetadata{
-					Attributes: map[string]resourceapi.DeviceAttribute{
-						consts.AttributeStandardPciAddress: {StringValue: &pci},
-					},
-				}
-			}
-			prepared = append(prepared, dev)
+				CDIDeviceIDs: preparedDevice.Device.GetCDIDeviceIDs(),
+			})
 		}
 		return kubeletplugin.PrepareResult{Devices: prepared}
 	}
@@ -165,21 +156,12 @@ func (d *Driver) prepareResourceClaim(ctx context.Context, ifNameIndex *int, cla
 
 	var prepared []kubeletplugin.Device
 	for _, preparedDevice := range preparedDevices {
-		dev := kubeletplugin.Device{
+		prepared = append(prepared, kubeletplugin.Device{
 			Requests:     preparedDevice.Device.GetRequestNames(),
 			PoolName:     preparedDevice.Device.GetPoolName(),
 			DeviceName:   preparedDevice.Device.GetDeviceName(),
-			CDIDeviceIDs: preparedDevice.Device.GetCdiDeviceIds(),
-		}
-		if preparedDevice.PciAddress != "" {
-			pci := preparedDevice.PciAddress
-			dev.Metadata = &kubeletplugin.DeviceMetadata{
-				Attributes: map[string]resourceapi.DeviceAttribute{
-					consts.AttributeStandardPciAddress: {StringValue: &pci},
-				},
-			}
-		}
-		prepared = append(prepared, dev)
+			CDIDeviceIDs: preparedDevice.Device.GetCDIDeviceIDs(),
+		})
 	}
 
 	err = d.podManager.Set(podUID, claim.UID, preparedDevices)
