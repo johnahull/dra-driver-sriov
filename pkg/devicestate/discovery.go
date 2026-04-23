@@ -208,6 +208,17 @@ func DiscoverSriovDevices() (types.AllocatableDevices, error) {
 				consts.AttributeNUMANode: {
 					IntValue: numaNodeIntPtr,
 				},
+				// standardized topology attributes
+				"resource.kubernetes.io/numaNode": {
+					IntValue: numaNodeIntPtr,
+				},
+			}
+
+			// Add cpuSocketID from NUMA node
+			if numaNodeInt >= 0 {
+				if socket, err := getSocketByNUMANode(numaNodeInt); err == nil {
+					attributes["resource.kubernetes.io/cpuSocketID"] = resourceapi.DeviceAttribute{IntValue: ptr.To(socket)}
+				}
 			}
 
 			resourceList[deviceName] = resourceapi.Device{
