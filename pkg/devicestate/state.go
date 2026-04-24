@@ -233,7 +233,7 @@ func (s *Manager) applyConfigOnDevice(ctx context.Context, ifNameIndex *int, cla
 	var err error
 	pciAddress := *deviceInfo.Attributes[consts.AttributePciAddress].StringValue
 	// if in standalone mode, we get the net attach def raw config and add the deviceID (PCI address) to it
-	if s.isStandaloneMode() {
+	if s.isStandaloneMode() && config.NetAttachDefName != "" {
 		netAttachDefNamespace := claim.GetNamespace()
 		if config.NetAttachDefNamespace != "" {
 			netAttachDefNamespace = config.NetAttachDefNamespace
@@ -242,7 +242,6 @@ func (s *Manager) applyConfigOnDevice(ctx context.Context, ifNameIndex *int, cla
 		if err != nil {
 			return nil, fmt.Errorf("error getting net attach def raw config: %w", err)
 		}
-		// add to sriov-cni compatible netconf the deviceID (PCI address)
 		netAttachDefRawConfig, err = drasriovtypes.AddDeviceIDToNetConf(netAttachDefRawConfig, pciAddress)
 		if err != nil {
 			return nil, fmt.Errorf("error converting net attach def config to sriov-cni format: %w", err)
