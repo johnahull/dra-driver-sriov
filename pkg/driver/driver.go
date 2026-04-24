@@ -68,6 +68,7 @@ func Start(ctx context.Context, config *sriovdratype.Config, deviceStateManager 
 		kubeletplugin.DriverName(consts.DriverName),
 		kubeletplugin.RegistrarDirectoryPath(config.Flags.KubeletRegistrarDirectoryPath),
 		kubeletplugin.PluginDataDirectoryPath(config.DriverPluginPath()),
+		kubeletplugin.EnableDeviceMetadata(true),
 	)
 	if err != nil {
 		klog.FromContext(ctx).Error(err, "Failed to start DRA kubelet plugin")
