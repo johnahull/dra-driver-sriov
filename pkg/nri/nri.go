@@ -52,6 +52,8 @@ func NewNRIPlugin(config *types.Config, podManager *podmanager.PodManager, cniRu
 	var err error
 	// register the NRI plugin
 	nriOpts := []stub.Option{
+		stub.WithPluginName(consts.DriverName),
+		stub.WithPluginIdx("00"),
 		// https://github.com/containerd/nri/pull/173
 		// Otherwise it silently exits the program
 		stub.WithOnClose(func() {
@@ -109,6 +111,10 @@ func (p *Plugin) RunPodSandbox(ctx context.Context, pod *api.PodSandbox) error {
 
 	networkDevicesData := types.NetworkDataChanStructList{}
 	for _, device := range devices {
+		if device.NetAttachDefConfig == "" {
+			logger.Info("Skipping CNI attachment for device without NAD config (VFIO passthrough)", "deviceName", device.Device.DeviceName)
+			continue
+		}
 		networkDeviceData, cniResultMap, err := p.cniRuntime.AttachNetwork(ctx, pod, networkNamespace, device)
 		if err != nil {
 			logger.Error(err, "Failed to attach network", "deviceName", device.Device.DeviceName, "pod.UID", pod.Uid, "pod.Name", pod.Name, "pod.Namespace", pod.Namespace)
@@ -162,6 +168,9 @@ func (p *Plugin) StopPodSandbox(ctx context.Context, pod *api.PodSandbox) error 
 	}
 
 	for _, device := range devices {
+		if device.NetAttachDefConfig == "" {
+			continue
+		}
 		logger.Info("Detaching network", "device", device)
 		err := p.cniRuntime.DetachNetwork(ctx, pod, networkNamespace, device)
 		if err != nil {
