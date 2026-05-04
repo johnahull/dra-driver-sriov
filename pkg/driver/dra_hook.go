@@ -135,12 +135,16 @@ func (d *Driver) prepareResourceClaim(ctx context.Context, ifNameIndex *int, cla
 	if isAlreadyPrepared {
 		var prepared []kubeletplugin.Device
 		for _, preparedDevice := range preparedDevices {
-			prepared = append(prepared, kubeletplugin.Device{
+			dev := kubeletplugin.Device{
 				Requests:     preparedDevice.Device.GetRequestNames(),
 				PoolName:     preparedDevice.Device.GetPoolName(),
 				DeviceName:   preparedDevice.Device.GetDeviceName(),
-				CDIDeviceIDs: preparedDevice.Device.GetCDIDeviceIDs(),
-			})
+				CDIDeviceIDs: preparedDevice.Device.GetCdiDeviceIds(),
+			}
+			if preparedDevice.PciAddress != "" {
+				dev.Metadata = deviceMetadataForPCI(preparedDevice.PciAddress)
+			}
+			prepared = append(prepared, dev)
 		}
 		return kubeletplugin.PrepareResult{Devices: prepared}
 	}
@@ -156,12 +160,16 @@ func (d *Driver) prepareResourceClaim(ctx context.Context, ifNameIndex *int, cla
 
 	var prepared []kubeletplugin.Device
 	for _, preparedDevice := range preparedDevices {
-		prepared = append(prepared, kubeletplugin.Device{
+		dev := kubeletplugin.Device{
 			Requests:     preparedDevice.Device.GetRequestNames(),
 			PoolName:     preparedDevice.Device.GetPoolName(),
 			DeviceName:   preparedDevice.Device.GetDeviceName(),
-			CDIDeviceIDs: preparedDevice.Device.GetCDIDeviceIDs(),
-		})
+			CDIDeviceIDs: preparedDevice.Device.GetCdiDeviceIds(),
+		}
+		if preparedDevice.PciAddress != "" {
+			dev.Metadata = deviceMetadataForPCI(preparedDevice.PciAddress)
+		}
+		prepared = append(prepared, dev)
 	}
 
 	err = d.podManager.Set(podUID, claim.UID, preparedDevices)
@@ -249,6 +257,14 @@ func (d *Driver) unprepareResourceClaim(ctx context.Context, claim kubeletplugin
 		return fmt.Errorf("error deleting claim %s from pod manager: %w", claim.UID, err)
 	}
 	return nil
+}
+
+func deviceMetadataForPCI(pciAddress string) *kubeletplugin.DeviceMetadata {
+	return &kubeletplugin.DeviceMetadata{
+		Attributes: map[string]resourceapi.DeviceAttribute{
+			consts.AttributeStandardPciAddress: {StringValue: &pciAddress},
+		},
+	}
 }
 
 func (d *Driver) HandleError(ctx context.Context, err error, msg string) {
