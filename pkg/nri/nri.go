@@ -113,6 +113,9 @@ func (p *Plugin) RunPodSandbox(ctx context.Context, pod *api.PodSandbox) error {
 	for _, device := range devices {
 		if device.NetAttachDefConfig == "" {
 			logger.Info("Skipping CNI attachment for device without NAD config (VFIO passthrough)", "deviceName", device.Device.DeviceName)
+			networkDevicesData = append(networkDevicesData, &types.NetworkDataChanStruct{
+				PreparedDevice: device,
+			})
 			continue
 		}
 		networkDeviceData, cniResultMap, err := p.cniRuntime.AttachNetwork(ctx, pod, networkNamespace, device)
