@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	resourceapi "k8s.io/api/resource/v1"
+	"k8s.io/dynamic-resource-allocation/deviceattribute"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
@@ -208,10 +209,16 @@ func DiscoverSriovDevices() (types.AllocatableDevices, error) {
 				consts.AttributeNUMANode: {
 					IntValue: numaNodeIntPtr,
 				},
-				// standardized topology attributes
-				"resource.kubernetes.io/numaNode": {
-					IntValue: numaNodeIntPtr,
-				},
+				// standardized topology attributes — numaNode as SLIT-ordered list
+				consts.AttributeStandardNUMANode: func() resourceapi.DeviceAttribute {
+					numaAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(vfInfo.PciAddress, deviceattribute.ListAttribute)
+					if err != nil {
+						logger.Error(err, "Failed to get NUMA list attribute, falling back to scalar",
+							"vf", vfInfo.PciAddress)
+						return resourceapi.DeviceAttribute{IntValue: numaNodeIntPtr}
+					}
+					return numaAttr.Value
+				}(),
 			}
 
 			// Add cpuSocketID from NUMA node

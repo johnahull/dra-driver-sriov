@@ -43,8 +43,9 @@ const (
 	AttributeInterfaceName      = DriverName + "/interfaceName"
 	AttributeMultusDeviceID     = MultusAttributePrefix + "/deviceID"
 	AttributeMultusResourceName = MultusAttributePrefix + "/resourceName"
-	// Use upstream Kubernetes standard attribute prefix for pciAddress
+	// Use upstream Kubernetes standard attribute prefix for pciAddress and numaNode
 	AttributeStandardPciAddress = deviceattribute.StandardDeviceAttributePrefix + "pciBusID"
+	AttributeStandardNUMANode   = "resource.kubernetes.io/numaNode"
 	// AttributePfPciAddress is for the PCI address of the Physical Function (PF).
 	AttributePfPciAddress = DriverName + "/pfPciAddress"
 
