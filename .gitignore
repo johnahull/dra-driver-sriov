@@ -1,4 +1,6 @@
 vendor/
+_output/
+dra-driver-sriov
 .config/
 .cache/
 .idea/
