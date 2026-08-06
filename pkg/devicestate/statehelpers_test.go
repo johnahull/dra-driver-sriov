@@ -556,7 +556,7 @@ var _ = Describe("getMapOfOpaqueDeviceConfigForDevice", func() {
 			configs := []resourceapi.DeviceAllocationConfiguration{
 				{
 					Source:   resourceapi.AllocationConfigSourceClass,
-					Requests: []string{}, // Empty requests
+					Requests: []string{},
 					DeviceConfiguration: resourceapi.DeviceConfiguration{
 						Opaque: &resourceapi.OpaqueDeviceConfiguration{
 							Driver: consts.DriverName,
