@@ -111,6 +111,7 @@ type Interface interface {
 
 	// VFIO device functions
 	GetVFIODeviceFile(pciAddress string) (devFileHost, devFileContainer string, err error)
+	GetVFIOCdevPath(pciAddress string) (string, error)
 
 	// Kernel module management functions
 	IsKernelModuleLoaded(moduleName string) bool
@@ -651,6 +652,40 @@ func (h *Host) GetVFIODeviceFile(pciAddress string) (devFileHost, devFileContain
 		"device", pciAddress, "devFileHost", devFileHost, "devFileContainer", devFileContainer)
 
 	return devFileHost, devFileContainer, err
+}
+
+// GetVFIOCdevPath returns the VFIO character device (cdev) path for a vfio-pci bound PCI device.
+// On kernels >= 6.2, vfio-pci creates a cdev entry discoverable via sysfs at
+// /sys/bus/pci/devices/<addr>/vfio-dev/. Returns ("", nil) when cdev is not
+// available (legacy kernel or empty directory), allowing graceful fallback to
+// legacy VFIO.
+func (h *Host) GetVFIOCdevPath(pciAddress string) (string, error) {
+	vfioDevDir := buildSysBusPciPath(pciAddress, "vfio-dev")
+	entries, err := os.ReadDir(vfioDevDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			h.log.V(2).Info("GetVFIOCdevPath(): vfio-dev directory not found (legacy kernel)", "device", pciAddress)
+			return "", nil
+		}
+		return "", fmt.Errorf("GetVFIOCdevPath(): failed to read vfio-dev directory for device %s: %w", pciAddress, err)
+	}
+
+	if len(entries) == 0 {
+		h.log.V(2).Info("GetVFIOCdevPath(): vfio-dev directory empty", "device", pciAddress)
+		return "", nil
+	}
+
+	if len(entries) > 1 {
+		names := make([]string, len(entries))
+		for i, e := range entries {
+			names[i] = e.Name()
+		}
+		return "", fmt.Errorf("GetVFIOCdevPath(): unexpected multiple cdev entries for device %s: %v", pciAddress, names)
+	}
+
+	cdevPath := filepath.Join("/dev/vfio/devices", entries[0].Name())
+	h.log.V(2).Info("GetVFIOCdevPath(): resolved cdev path", "device", pciAddress, "cdevPath", cdevPath)
+	return cdevPath, nil
 }
 
 // Kernel Module Management Functions
