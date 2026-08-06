@@ -477,6 +477,7 @@ var _ = Describe("Manager", Serial, func() {
 
 			mockHost.EXPECT().BindDeviceDriver("0000:01:00.1", gomock.Any()).Return("ixgbevf", nil)
 			mockHost.EXPECT().GetVFIODeviceFile("0000:01:00.1").Return("/dev/vfio/1", "/dev/vfio/1", nil)
+			mockHost.EXPECT().GetVFIOCdevPath("0000:01:00.1").Return("", nil)
 			mockHost.EXPECT().GetRDMADevicesForPCI("0000:01:00.1").Return([]string{})
 			mockHost.EXPECT().RestoreDeviceDriver("0000:01:00.1", "ixgbevf").Return(fmt.Errorf("restore failed"))
 
@@ -948,6 +949,212 @@ var _ = Describe("Manager", Serial, func() {
 			Expect(preparedDevice).NotTo(BeNil())
 			Expect(preparedDevice.PciAddress).To(Equal("0000:01:00.1"))
 			Expect(preparedDevice.IfName).To(Equal("net0"))
+		})
+
+		It("should include cdev and iommu device nodes when available", func() {
+			m := &Manager{
+				allocatable: drasriovtypes.AllocatableDevices{
+					"device1": {
+						Name: "device1",
+						Attributes: map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
+							consts.AttributePciAddress: {StringValue: ptr.To("0000:01:00.1")},
+						},
+					},
+				},
+				configurationMode: string(consts.ConfigurationModeMultus),
+				iommuAvailable:    true,
+			}
+			config := &configapi.VfConfig{
+				Driver: "vfio-pci",
+			}
+			claim := &resourceapi.ResourceClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-claim",
+					Namespace: "test-ns",
+					UID:       "claim-uid",
+				},
+				Status: resourceapi.ResourceClaimStatus{
+					ReservedFor: []resourceapi.ResourceClaimConsumerReference{
+						{UID: "pod-uid"},
+					},
+				},
+			}
+			result := &resourceapi.DeviceRequestAllocationResult{
+				Device:  "device1",
+				Request: "req1",
+				Pool:    "pool1",
+			}
+
+			mockHost.EXPECT().BindDeviceDriver("0000:01:00.1", config).Return("ixgbevf", nil)
+			mockHost.EXPECT().GetVFIODeviceFile("0000:01:00.1").Return("/dev/vfio/1", "/dev/vfio/1", nil)
+			mockHost.EXPECT().GetVFIOCdevPath("0000:01:00.1").Return("/dev/vfio/devices/vfio0", nil)
+
+			ifNameIndex := 0
+			preparedDevice, err := m.applyConfigOnDevice(context.Background(), &ifNameIndex, claim, config, result)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(preparedDevice).NotTo(BeNil())
+
+			edits := preparedDevice.ContainerEdits.ContainerEdits
+			devicePaths := []string{}
+			for _, dev := range edits.DeviceNodes {
+				devicePaths = append(devicePaths, dev.Path)
+			}
+			Expect(devicePaths).To(ContainElement("/dev/vfio/1"))
+			Expect(devicePaths).To(ContainElement("/dev/vfio/vfio"))
+			Expect(devicePaths).To(ContainElement("/dev/vfio/devices/vfio0"))
+			Expect(devicePaths).To(ContainElement("/dev/iommu"))
+		})
+
+		It("should not include cdev or iommu device nodes when unavailable", func() {
+			m := &Manager{
+				allocatable: drasriovtypes.AllocatableDevices{
+					"device1": {
+						Name: "device1",
+						Attributes: map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
+							consts.AttributePciAddress: {StringValue: ptr.To("0000:01:00.1")},
+						},
+					},
+				},
+				configurationMode: string(consts.ConfigurationModeMultus),
+				iommuAvailable:    false,
+			}
+			config := &configapi.VfConfig{
+				Driver: "vfio-pci",
+			}
+			claim := &resourceapi.ResourceClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-claim",
+					Namespace: "test-ns",
+					UID:       "claim-uid",
+				},
+				Status: resourceapi.ResourceClaimStatus{
+					ReservedFor: []resourceapi.ResourceClaimConsumerReference{
+						{UID: "pod-uid"},
+					},
+				},
+			}
+			result := &resourceapi.DeviceRequestAllocationResult{
+				Device:  "device1",
+				Request: "req1",
+				Pool:    "pool1",
+			}
+
+			mockHost.EXPECT().BindDeviceDriver("0000:01:00.1", config).Return("ixgbevf", nil)
+			mockHost.EXPECT().GetVFIODeviceFile("0000:01:00.1").Return("/dev/vfio/1", "/dev/vfio/1", nil)
+			mockHost.EXPECT().GetVFIOCdevPath("0000:01:00.1").Return("", nil)
+
+			ifNameIndex := 0
+			preparedDevice, err := m.applyConfigOnDevice(context.Background(), &ifNameIndex, claim, config, result)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(preparedDevice).NotTo(BeNil())
+
+			edits := preparedDevice.ContainerEdits.ContainerEdits
+			devicePaths := []string{}
+			for _, dev := range edits.DeviceNodes {
+				devicePaths = append(devicePaths, dev.Path)
+			}
+			Expect(devicePaths).To(ContainElement("/dev/vfio/1"))
+			Expect(devicePaths).To(ContainElement("/dev/vfio/vfio"))
+			Expect(devicePaths).NotTo(ContainElement("/dev/vfio/devices/vfio0"))
+			Expect(devicePaths).NotTo(ContainElement("/dev/iommu"))
+		})
+
+		It("should include cdev but not iommu when only cdev is available", func() {
+			m := &Manager{
+				allocatable: drasriovtypes.AllocatableDevices{
+					"device1": {
+						Name: "device1",
+						Attributes: map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
+							consts.AttributePciAddress: {StringValue: ptr.To("0000:01:00.1")},
+						},
+					},
+				},
+				configurationMode: string(consts.ConfigurationModeMultus),
+				iommuAvailable:    false,
+			}
+			config := &configapi.VfConfig{
+				Driver: "vfio-pci",
+			}
+			claim := &resourceapi.ResourceClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-claim",
+					Namespace: "test-ns",
+					UID:       "claim-uid",
+				},
+				Status: resourceapi.ResourceClaimStatus{
+					ReservedFor: []resourceapi.ResourceClaimConsumerReference{
+						{UID: "pod-uid"},
+					},
+				},
+			}
+			result := &resourceapi.DeviceRequestAllocationResult{
+				Device:  "device1",
+				Request: "req1",
+				Pool:    "pool1",
+			}
+
+			mockHost.EXPECT().BindDeviceDriver("0000:01:00.1", config).Return("ixgbevf", nil)
+			mockHost.EXPECT().GetVFIODeviceFile("0000:01:00.1").Return("/dev/vfio/1", "/dev/vfio/1", nil)
+			mockHost.EXPECT().GetVFIOCdevPath("0000:01:00.1").Return("/dev/vfio/devices/vfio0", nil)
+
+			ifNameIndex := 0
+			preparedDevice, err := m.applyConfigOnDevice(context.Background(), &ifNameIndex, claim, config, result)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(preparedDevice).NotTo(BeNil())
+
+			edits := preparedDevice.ContainerEdits.ContainerEdits
+			devicePaths := []string{}
+			for _, dev := range edits.DeviceNodes {
+				devicePaths = append(devicePaths, dev.Path)
+			}
+			Expect(devicePaths).To(ContainElement("/dev/vfio/1"))
+			Expect(devicePaths).To(ContainElement("/dev/vfio/vfio"))
+			Expect(devicePaths).To(ContainElement("/dev/vfio/devices/vfio0"))
+			Expect(devicePaths).NotTo(ContainElement("/dev/iommu"))
+		})
+
+		It("restores the original driver when VFIO cdev lookup fails", func() {
+			m := &Manager{
+				allocatable: drasriovtypes.AllocatableDevices{
+					"device1": {
+						Name: "device1",
+						Attributes: map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
+							consts.AttributePciAddress: {StringValue: ptr.To("0000:01:00.1")},
+						},
+					},
+				},
+				configurationMode: string(consts.ConfigurationModeMultus),
+			}
+			config := &configapi.VfConfig{
+				Driver: "vfio-pci",
+			}
+			claim := &resourceapi.ResourceClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-claim",
+					Namespace: "test-ns",
+					UID:       "claim-uid",
+				},
+				Status: resourceapi.ResourceClaimStatus{
+					ReservedFor: []resourceapi.ResourceClaimConsumerReference{
+						{UID: "pod-uid"},
+					},
+				},
+			}
+			result := &resourceapi.DeviceRequestAllocationResult{
+				Device:  "device1",
+				Request: "req1",
+				Pool:    "pool1",
+			}
+
+			mockHost.EXPECT().BindDeviceDriver("0000:01:00.1", config).Return("ixgbevf", nil)
+			mockHost.EXPECT().GetVFIODeviceFile("0000:01:00.1").Return("/dev/vfio/1", "/dev/vfio/1", nil)
+			mockHost.EXPECT().GetVFIOCdevPath("0000:01:00.1").Return("", fmt.Errorf("multiple cdev entries"))
+			mockHost.EXPECT().RestoreDeviceDriver("0000:01:00.1", "ixgbevf").Return(nil)
+
+			ifNameIndex := 0
+			_, err := m.applyConfigOnDevice(context.Background(), &ifNameIndex, claim, config, result)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("error getting VFIO cdev"))
 		})
 
 		It("restores the original driver when VFIO file lookup fails", func() {

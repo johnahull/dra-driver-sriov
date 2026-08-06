@@ -609,6 +609,53 @@ vhost_net 32768 1 tun, Live 0xffffffffa0456000`),
 				Expect(err.Error()).To(ContainSubstring("unable to find iommu_group"))
 			})
 		})
+
+		Context("GetVFIOCdevPath", func() {
+			It("should return cdev path when vfio-dev directory has single entry", func() {
+				fs.Dirs = []string{
+					"sys/bus/pci/devices/0000:01:00.0/vfio-dev/vfio0",
+				}
+				tearDown = fs.Use()
+
+				cdevPath, err := h.GetVFIOCdevPath("0000:01:00.0")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cdevPath).To(Equal("/dev/vfio/devices/vfio0"))
+			})
+
+			It("should return empty string when vfio-dev directory does not exist", func() {
+				fs.Dirs = []string{
+					"sys/bus/pci/devices/0000:01:00.0",
+				}
+				tearDown = fs.Use()
+
+				cdevPath, err := h.GetVFIOCdevPath("0000:01:00.0")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cdevPath).To(BeEmpty())
+			})
+
+			It("should return empty string when vfio-dev directory is empty", func() {
+				fs.Dirs = []string{
+					"sys/bus/pci/devices/0000:01:00.0/vfio-dev",
+				}
+				tearDown = fs.Use()
+
+				cdevPath, err := h.GetVFIOCdevPath("0000:01:00.0")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cdevPath).To(BeEmpty())
+			})
+
+			It("should return error when multiple vfio-dev entries exist", func() {
+				fs.Dirs = []string{
+					"sys/bus/pci/devices/0000:01:00.0/vfio-dev/vfio0",
+					"sys/bus/pci/devices/0000:01:00.0/vfio-dev/vfio1",
+				}
+				tearDown = fs.Use()
+
+				_, err := h.GetVFIOCdevPath("0000:01:00.0")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("unexpected multiple cdev entries"))
+			})
+		})
 	})
 
 	Describe("Edge Cases and Error Handling", func() {
