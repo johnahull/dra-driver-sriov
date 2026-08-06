@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -72,9 +71,6 @@ func NewManager(config *drasriovtypes.Config, cdi *cdi.Handler, deviceInfoStore 
 		deviceInfoStore = NewDeviceInfoStore()
 	}
 
-	_, iommuErr := os.Stat("/dev/iommu")
-	iommuAvailable := iommuErr == nil
-
 	state := &Manager{
 		k8sClient:              config.K8sClient,
 		defaultInterfacePrefix: config.Flags.DefaultInterfacePrefix,
@@ -82,7 +78,7 @@ func NewManager(config *drasriovtypes.Config, cdi *cdi.Handler, deviceInfoStore 
 		deviceInfoStore:        deviceInfoStore,
 		allocatable:            allocatable,
 		configurationMode:      configurationMode,
-		iommuAvailable:         iommuAvailable,
+		iommuAvailable:         host.GetHelpers().IsIommufdAvailable(),
 	}
 
 	return state, nil

@@ -276,6 +276,20 @@ func (mr *MockInterfaceMockRecorder) IsDpdkDriver(driver any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsDpdkDriver", reflect.TypeOf((*MockInterface)(nil).IsDpdkDriver), driver)
 }
 
+// IsIommufdAvailable mocks base method.
+func (m *MockInterface) IsIommufdAvailable() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsIommufdAvailable")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsIommufdAvailable indicates an expected call of IsIommufdAvailable.
+func (mr *MockInterfaceMockRecorder) IsIommufdAvailable() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsIommufdAvailable", reflect.TypeOf((*MockInterface)(nil).IsIommufdAvailable))
+}
+
 // IsKernelModuleLoaded mocks base method.
 func (m *MockInterface) IsKernelModuleLoaded(moduleName string) bool {
 	m.ctrl.T.Helper()

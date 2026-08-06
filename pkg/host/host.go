@@ -112,6 +112,7 @@ type Interface interface {
 	// VFIO device functions
 	GetVFIODeviceFile(pciAddress string) (devFileHost, devFileContainer string, err error)
 	GetVFIOCdevPath(pciAddress string) (string, error)
+	IsIommufdAvailable() bool
 
 	// Kernel module management functions
 	IsKernelModuleLoaded(moduleName string) bool
@@ -686,6 +687,14 @@ func (h *Host) GetVFIOCdevPath(pciAddress string) (string, error) {
 	cdevPath := filepath.Join("/dev/vfio/devices", entries[0].Name())
 	h.log.V(2).Info("GetVFIOCdevPath(): resolved cdev path", "device", pciAddress, "cdevPath", cdevPath)
 	return cdevPath, nil
+}
+
+// IsIommufdAvailable returns true if /dev/iommu exists on the host, indicating
+// kernel support for iommufd.
+func (h *Host) IsIommufdAvailable() bool {
+	devIommuPath := buildSysPath("/dev/iommu")
+	_, err := os.Stat(devIommuPath)
+	return err == nil
 }
 
 // Kernel Module Management Functions
