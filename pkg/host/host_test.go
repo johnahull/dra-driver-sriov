@@ -610,6 +610,29 @@ vhost_net 32768 1 tun, Live 0xffffffffa0456000`),
 			})
 		})
 
+		Context("IsIommufdAvailable", func() {
+			It("should return true when /dev/iommu exists", func() {
+				fs.Dirs = []string{
+					"dev",
+				}
+				fs.Files = map[string][]byte{
+					"dev/iommu": {},
+				}
+				tearDown = fs.Use()
+
+				Expect(h.IsIommufdAvailable()).To(BeTrue())
+			})
+
+			It("should return false when /dev/iommu does not exist", func() {
+				fs.Dirs = []string{
+					"dev",
+				}
+				tearDown = fs.Use()
+
+				Expect(h.IsIommufdAvailable()).To(BeFalse())
+			})
+		})
+
 		Context("GetVFIOCdevPath", func() {
 			It("should return cdev path when vfio-dev directory has single entry", func() {
 				fs.Dirs = []string{
