@@ -66,6 +66,14 @@ func buildProcPath(path string) string {
 	return path
 }
 
+// buildDevPath constructs a path under /dev with RootDir prefix if set
+func buildDevPath(path string) string {
+	if RootDir != "" {
+		return filepath.Join(RootDir, path)
+	}
+	return path
+}
+
 // VFInfo holds information about a Virtual Function
 type VFInfo struct {
 	PciAddress string
@@ -692,8 +700,7 @@ func (h *Host) GetVFIOCdevPath(pciAddress string) (string, error) {
 // IsIommufdAvailable returns true if /dev/iommu exists on the host, indicating
 // kernel support for iommufd.
 func (h *Host) IsIommufdAvailable() bool {
-	devIommuPath := buildSysPath("/dev/iommu")
-	_, err := os.Stat(devIommuPath)
+	_, err := os.Stat(buildDevPath("/dev/iommu"))
 	return err == nil
 }
 
